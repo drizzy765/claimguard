@@ -76,12 +76,27 @@ pytest -q
 curl -X POST http://127.0.0.1:8000/audit -H "X-Factory-API-Key: $FACTORY_MASTER_KEY" -F "file=@data/sample_bills/bill_padded.json"
 ```
 
-### Docker
+### Cloud deploy (no local Docker Desktop)
+
+**Recommended: Render** — builds the Dockerfile in the cloud and serves API + UI on one URL.
+
+1. Open [Render Dashboard → New → Blueprint](https://dashboard.render.com/select-repo?type=blueprint) and connect `drizzy765/claimguard` (uses `render.yaml`).
+2. When prompted, set secrets:
+   - `FACTORY_MASTER_KEY` — any long random string (paste the same into the UI)
+   - `LLM_API_KEY` — Google AI Studio key for Gemma 4 (optional for JSON sample demos)
+3. Deploy → open `https://claimguard-xxxx.onrender.com` → `/health` should return `OK`.
+
+Or **New → Web Service** → repo `claimguard` → **Docker** → same env vars → Create.
+
+Free tier cold-starts in ~30–60s after idle — hit `/health` once before the demo.
+
+### Docker (optional / cloud builders)
 
 ```bash
 docker build -t claimguard .
 docker run -p 8000:8000 --env-file .env claimguard
 ```
+
 
 ## Sample data disclaimer
 

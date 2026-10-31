@@ -1,0 +1,26 @@
+# Deploy: https://dashboard.render.com → New → Blueprint → connect drizzy765/claimguard
+# No local Docker needed — Render builds the Dockerfile in the cloud.
+services:
+  - type: web
+    name: claimguard
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: FACTORY_MASTER_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta/openai/
+      - key: LLM_MODEL
+        value: gemma-4-26b-a4b-it
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_FALLBACK_BASE_URL
+        sync: false
+      - key: LLM_FALLBACK_API_KEY
+        value: ollama
+      - key: LLM_FALLBACK_MODEL
+        value: gemma4:12b

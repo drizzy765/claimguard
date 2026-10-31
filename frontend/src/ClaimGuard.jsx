@@ -15,7 +15,11 @@ function verdictClass(v) {
 
 export default function ClaimGuard() {
   const [backendUrl, setBackendUrl] = useState(
-    import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
+    import.meta.env.VITE_API_URL !== undefined && import.meta.env.VITE_API_URL !== ""
+      ? import.meta.env.VITE_API_URL
+      : import.meta.env.PROD
+        ? "" // same-origin when served from FastAPI/Docker
+        : "http://127.0.0.1:8000"
   );
   const [apiKey, setApiKey] = useState(
     localStorage.getItem("FACTORY_MASTER_KEY") || ""

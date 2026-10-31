@@ -282,3 +282,27 @@ async def audit_claim(file: UploadFile = File(...)):
 async def audit_claim_alias(file: UploadFile = File(...)):
     """Alias matching docs/agent.md path."""
     return await _audit_upload(file)
+
+
+# --- Serve React build (same-origin deploy on Render / Railway / DO) ---
+_FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+if os.path.isdir(_FRONTEND_DIST):
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    _assets = os.path.join(_FRONTEND_DIST, "assets")
+    if os.path.isdir(_assets):
+        app.mount("/assets", StaticFiles(directory=_assets), name="assets")
+
+    @app.get("/")
+    async def spa_index():
+        return FileResponse(os.path.join(_FRONTEND_DIST, "index.html"))
+
+    @app.get("/{full_path:path}")
+    async def spa_fallback(full_path: str):
+        # Do not shadow API routes (already registered above)
+        candidate = os.path.join(_FRONTEND_DIST, full_path)
+        if full_path and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(os.path.join(_FRONTEND_DIST, "index.html"))
+

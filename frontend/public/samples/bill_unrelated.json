@@ -1,0 +1,45 @@
+{
+  "hospital": "Greenfield Hospital",
+  "date": "2026-06-01",
+  "diagnosis": "Malaria (uncomplicated)",
+  "items": [
+    {
+      "line": 1,
+      "description": "Consultation GP",
+      "qty": 1,
+      "unit_price": 3000,
+      "amount": 3000
+    },
+    {
+      "line": 2,
+      "description": "Malaria RDT",
+      "qty": 1,
+      "unit_price": 1500,
+      "amount": 1500
+    },
+    {
+      "line": 3,
+      "description": "Dental scaling",
+      "qty": 1,
+      "unit_price": 15000,
+      "amount": 15000
+    },
+    {
+      "line": 4,
+      "description": "MRI Brain",
+      "qty": 1,
+      "unit_price": 120000,
+      "amount": 120000
+    },
+    {
+      "line": 5,
+      "description": "Artemether-Lumefantrine",
+      "qty": 1,
+      "unit_price": 2500,
+      "amount": 2500
+    }
+  ],
+  "stated_total": 142000,
+  "confidence": 0.95,
+  "note": "FAKE/padded sample \u2014 unrelated dental + MRI on malaria claim"
+}

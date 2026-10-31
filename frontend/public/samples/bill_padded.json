@@ -1,0 +1,52 @@
+{
+  "hospital": "Sunrise Medical Centre",
+  "date": "2026-05-18",
+  "diagnosis": "Malaria (uncomplicated)",
+  "items": [
+    {
+      "line": 1,
+      "description": "Consultation GP",
+      "qty": 1,
+      "unit_price": 10000,
+      "amount": 10000
+    },
+    {
+      "line": 2,
+      "description": "Malaria RDT",
+      "qty": 1,
+      "unit_price": 6000,
+      "amount": 6000
+    },
+    {
+      "line": 3,
+      "description": "Paracetamol 500mg",
+      "qty": 10,
+      "unit_price": 300,
+      "amount": 3000
+    },
+    {
+      "line": 4,
+      "description": "Injection Diclofenac",
+      "qty": 2,
+      "unit_price": 500,
+      "amount": 1000
+    },
+    {
+      "line": 5,
+      "description": "Injection Diclofenac",
+      "qty": 2,
+      "unit_price": 500,
+      "amount": 1000
+    },
+    {
+      "line": 6,
+      "description": "Artemether-Lumefantrine",
+      "qty": 1,
+      "unit_price": 2500,
+      "amount": 2500
+    }
+  ],
+  "stated_total": 28000,
+  "confidence": 0.95,
+  "note": "PADDED sample \u2014 multi overcharges, duplicate injection, bad total"
+}

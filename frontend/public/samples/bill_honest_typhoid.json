@@ -1,0 +1,45 @@
+{
+  "hospital": "Abuja Family Hospital",
+  "date": "2026-04-02",
+  "diagnosis": "Typhoid fever (suspected)",
+  "items": [
+    {
+      "line": 1,
+      "description": "Consultation GP",
+      "qty": 1,
+      "unit_price": 3000,
+      "amount": 3000
+    },
+    {
+      "line": 2,
+      "description": "Widal test",
+      "qty": 1,
+      "unit_price": 2000,
+      "amount": 2000
+    },
+    {
+      "line": 3,
+      "description": "FBC",
+      "qty": 1,
+      "unit_price": 3500,
+      "amount": 3500
+    },
+    {
+      "line": 4,
+      "description": "Ciprofloxacin 500mg",
+      "qty": 14,
+      "unit_price": 200,
+      "amount": 2800
+    },
+    {
+      "line": 5,
+      "description": "ORS sachet",
+      "qty": 5,
+      "unit_price": 100,
+      "amount": 500
+    }
+  ],
+  "stated_total": 11800,
+  "confidence": 0.95,
+  "note": "HONEST sample \u2014 consistent diagnosis + pricing"
+}

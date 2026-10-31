@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Icon-only / app tile: simplified shield-check (no document lines). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ClaimGuard">
+  <path fill="#0F3D2C" d="M32 4c10 6 20 8 24 9v18c0 14-10 24-24 29C18 55 8 45 8 31V13c4-1 14-3 24-9z"/>
+  <path fill="none" stroke="#E8F0EA" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M22 32l7 7 14-16"/>
+</svg>

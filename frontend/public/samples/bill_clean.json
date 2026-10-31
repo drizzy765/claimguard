@@ -1,0 +1,38 @@
+{
+  "hospital": "Lagos Community Clinic",
+  "date": "2026-03-12",
+  "diagnosis": "Malaria (uncomplicated)",
+  "items": [
+    {
+      "line": 1,
+      "description": "Consultation GP",
+      "qty": 1,
+      "unit_price": 3000,
+      "amount": 3000
+    },
+    {
+      "line": 2,
+      "description": "Malaria RDT",
+      "qty": 1,
+      "unit_price": 1500,
+      "amount": 1500
+    },
+    {
+      "line": 3,
+      "description": "Artemether-Lumefantrine",
+      "qty": 1,
+      "unit_price": 2500,
+      "amount": 2500
+    },
+    {
+      "line": 4,
+      "description": "Paracetamol 500mg",
+      "qty": 10,
+      "unit_price": 50,
+      "amount": 500
+    }
+  ],
+  "stated_total": 7500,
+  "confidence": 0.95,
+  "note": "HONEST sample \u2014 prices near illustrative tariff"
+}

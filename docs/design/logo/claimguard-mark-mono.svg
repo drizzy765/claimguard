@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- One-colour mark for print / embossing / light backgrounds. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ClaimGuard">
+  <path fill="currentColor" d="M32 4c10 6 20 8 24 9v18c0 14-10 24-24 29C18 55 8 45 8 31V13c4-1 14-3 24-9z"/>
+  <rect x="20" y="18" width="24" height="28" rx="2.5" fill="#fff"/>
+  <path fill="currentColor" opacity="0.25" d="M26 24h12v2H26zm0 6h12v2H26zm0 6h8v2h-8z"/>
+  <path fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="M26 34l5 5 9-11"/>
+</svg>

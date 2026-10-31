@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Favicon 32-friendly: bold shield + check. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <path fill="#0F3D2C" d="M16 2c5 3 10 4 12 4.5V15c0 7-5 12-12 14.5C9 27 4 22 4 15V6.5C6 6 11 5 16 2z"/>
+  <path fill="none" stroke="#E8F0EA" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M10 16l4 4 8-9"/>
+</svg>

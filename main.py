@@ -22,12 +22,23 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# allow_credentials + allow_origins=["*"] is invalid per CORS; reflect Vercel/local explicitly.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://claimguard-red.vercel.app",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*", "X-Client-OpenRouter-Key", "X-Client-Cerebras-Key"],
+    allow_headers=[
+        "*",
+        "X-Factory-API-Key",
+        "X-Client-OpenRouter-Key",
+        "X-Client-Cerebras-Key",
+    ],
 )
 
 API_KEY_NAME = "X-Factory-API-Key"

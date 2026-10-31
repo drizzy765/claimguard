@@ -100,9 +100,9 @@ export function useAudit({ apiBase, apiKey, onComplete }) {
         clearTimer();
         setActiveStep(-1);
         const msg = e.message || String(e);
-        if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+        if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("CORS")) {
           setError(
-            "Cannot reach the ClaimGuard API. Check the host URL and that the service is awake."
+            "Cannot reach the ClaimGuard API (often a cold start or timeout — browsers call it CORS). Wait ~30s, press Retry in the header, then run again. Prefer a JSON sample over a photo for demos."
           );
         } else {
           setError(msg);

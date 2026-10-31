@@ -47,6 +47,19 @@ export default function AuditReport({ report, preview, onRerun }) {
   const flagCount = (report.fraud?.flags || []).length;
   const savings = formatNaira(report.fraud?.potential_savings_ngn);
   const gemma = modelLabel(report.model);
+  const overpricedFlags = (report.fraud?.flags || []).filter((f) => f.type === "overpriced");
+  const overchargedNgn = (report.pricing?.lines || [])
+    .filter((l) => l.flag === "overpriced")
+    .reduce((sum, l) => {
+      const charged = Number(l.charged_unit) || 0;
+      const ref = Number(l.ref_price) || 0;
+      const qty =
+        Number(
+          (report.extracted?.items || []).find((it) => it.line === l.line)?.qty || 1
+        ) || 1;
+      return sum + Math.max(0, (charged - ref) * qty);
+    }, 0);
+  const overchargedLabel = formatNaira(overchargedNgn);
 
   const exportJson = () => {
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
@@ -116,7 +129,20 @@ export default function AuditReport({ report, preview, onRerun }) {
             {flagCount} flag{flagCount === 1 ? "" : "s"} · Potential savings{" "}
             <span className="tabular text-leaf-deep">{savings}</span>
           </p>
+          {tone === "fraud" && overchargedNgn > 0 && (
+            <p className="mt-1 text-base font-semibold tabular text-fraud">
+              {overchargedLabel} overcharged
+              {overpricedFlags.length > 0
+                ? ` · ${overpricedFlags.length} overpriced line${overpricedFlags.length === 1 ? "" : "s"}`
+                : ""}
+            </p>
+          )}
           <p className="mt-2 text-sm text-ink-muted">{report.fraud?.summary}</p>
+          {report.vision_fallback && (
+            <p className="mt-2 text-xs text-ink-muted">
+              Vision timed out or failed — scored matching sample JSON so the demo never 500s.
+            </p>
+          )}
         </div>
       </div>
 

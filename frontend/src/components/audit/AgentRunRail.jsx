@@ -27,6 +27,11 @@ export default function AgentRunRail({ steps, activeStep, logs, running }) {
                   <span className="text-[10px] uppercase tracking-wide text-ink-muted">Idle</span>
                 )}
               </div>
+              {s.id === "extractor" && (
+                <span className="mb-1 inline-flex rounded border border-leaf/25 bg-leaf/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-leaf">
+                  Gemma 4
+                </span>
+              )}
               <p className="text-xs text-ink-muted">{s.detail}</p>
             </div>
           );

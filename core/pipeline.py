@@ -51,15 +51,18 @@ async def _run_extractor(image_b64: str, mime: str, model: Optional[str]) -> Ext
             ExtractedBill,
             system="Return ONLY JSON. No markdown.",
             model=model,
-            mime=mime,
+            mime=mime or "image/jpeg",
         )
+        if not bill.items:
+            raise ValueError("Vision returned no line items")
         if bill.hospital:
             bill.hospital = pii_regex_masker.invoke(bill.hospital)
         if bill.diagnosis:
             bill.diagnosis = pii_regex_masker.invoke(bill.diagnosis)
         return bill
 
-    return await asyncio.to_thread(_call)
+    # Hard cap so Render free tier does not hang until gateway 502/500.
+    return await asyncio.wait_for(asyncio.to_thread(_call), timeout=75)
 
 
 async def _run_price_check(extracted: ExtractedBill) -> PricingResult:

@@ -69,6 +69,7 @@ def get_llm(
             api_key=primary_key,
             temperature=temperature,
             max_retries=1,
+            timeout=60,
         )
     else:
         primary = None
@@ -82,6 +83,7 @@ def get_llm(
                 api_key=settings.LLM_FALLBACK_API_KEY or "ollama",
                 temperature=temperature,
                 max_retries=0,
+                timeout=60,
             )
         )
 
@@ -190,12 +192,26 @@ def vision_json(
     On Gemini credit/outage, get_llm() falls through to Groq (text models may
     ignore the image — prefer JSON sample bills if vision fallback is weak).
     """
+    # Accept raw base64 or a full data-URL; always emit a clean data URL.
+    b64 = (image_b64 or "").strip()
+    if b64.startswith("data:"):
+        # data:image/jpeg;base64,AAAA...
+        comma = b64.find(",")
+        if comma != -1:
+            header, b64 = b64[:comma], b64[comma + 1 :]
+            if ";base64" in header and header.startswith("data:"):
+                mime = header[5:].split(";")[0] or mime
+    mime = (mime or "image/jpeg").split(";")[0].strip() or "image/jpeg"
+    if not b64:
+        raise ValueError("Empty image base64 for vision extract")
+
     llm = get_llm(model=model, temperature=0.0)
+    data_url = f"data:{mime};base64,{b64}"
     content = [
         {"type": "text", "text": prompt},
         {
             "type": "image_url",
-            "image_url": {"url": f"data:{mime};base64,{image_b64}"},
+            "image_url": {"url": data_url},
         },
     ]
     messages = []
@@ -203,8 +219,22 @@ def vision_json(
         messages.append(SystemMessage(content=system))
     messages.append(HumanMessage(content=content))
 
-    response = llm.invoke(messages)
+    try:
+        response = llm.invoke(messages)
+    except Exception as e:
+        raise RuntimeError(f"Vision LLM invoke failed (model={model or settings.LLM_MODEL}): {e}") from e
+
     raw = getattr(response, "content", None) or str(response)
+    # Some providers return a list of content parts
+    if isinstance(raw, list):
+        parts = []
+        for p in raw:
+            if isinstance(p, dict) and p.get("type") == "text":
+                parts.append(p.get("text") or "")
+            else:
+                parts.append(str(p))
+        raw = "\n".join(parts)
+
     try:
         return parse_json_response(raw, schema, repair_once=False)
     except Exception:
@@ -218,6 +248,10 @@ def vision_json(
         ]
         repaired = llm.invoke(repair)
         repaired_raw = getattr(repaired, "content", None) or str(repaired)
+        if isinstance(repaired_raw, list):
+            repaired_raw = "\n".join(
+                (p.get("text") if isinstance(p, dict) else str(p)) for p in repaired_raw
+            )
         return parse_json_response(repaired_raw, schema, repair_once=False)
 
 

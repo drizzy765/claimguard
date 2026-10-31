@@ -1,4 +1,6 @@
 import io
+import json
+import logging
 import os
 from typing import Optional
 
@@ -13,6 +15,8 @@ from core.config import settings
 from core.llm import get_llm
 from core.pipeline import run_audit, run_audit_from_extracted
 from core.schemas import ExtractedBill
+
+logger = logging.getLogger("claimguard")
 
 load_dotenv()
 
@@ -78,24 +82,59 @@ class AgentRoute(BaseModel):
     reasoning: str = Field(description="A brief 1-sentence explanation of why this agent was chosen.")
 
 
-def _resize_image(data: bytes, max_side: int = 1280) -> tuple[bytes, str]:
-    """Resize with Pillow when available; otherwise pass through as JPEG/PNG."""
-    mime = "image/jpeg"
+def _sniff_mime(data: bytes, filename: str = "") -> str:
+    lower = (filename or "").lower()
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if lower.endswith(".png"):
+        return "image/png"
+    if lower.endswith(".webp"):
+        return "image/webp"
+    if lower.endswith(".gif"):
+        return "image/gif"
+    return "image/jpeg"
+
+
+def _resize_image(data: bytes, max_side: int = 1280, filename: str = "") -> tuple[bytes, str]:
+    """Normalize to JPEG for Gemma vision; keep a correct mime type always."""
+    fallback_mime = _sniff_mime(data, filename)
     try:
         from PIL import Image
 
         img = Image.open(io.BytesIO(data))
+        img.load()
         if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        elif img.mode == "L":
             img = img.convert("RGB")
         w, h = img.size
         scale = min(1.0, max_side / max(w, h))
         if scale < 1.0:
             img = img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=85)
+        img.save(buf, format="JPEG", quality=85, optimize=True)
         return buf.getvalue(), "image/jpeg"
-    except Exception:
-        return data, mime
+    except Exception as e:
+        logger.warning("Pillow resize failed (%s); passing original bytes as %s", e, fallback_mime)
+        return data, fallback_mime
+
+
+def _load_sample_sidecar(filename: str) -> Optional[ExtractedBill]:
+    """Load matching data/sample_bills/<stem>.json when present."""
+    stem = os.path.splitext(os.path.basename(filename or ""))[0]
+    if not stem:
+        return None
+    sidecar = os.path.join("data", "sample_bills", f"{stem}.json")
+    if not os.path.isfile(sidecar):
+        return None
+    with open(sidecar, encoding="utf-8") as f:
+        return ExtractedBill.model_validate(json.load(f))
 
 
 @app.get("/health")
@@ -252,8 +291,6 @@ async def _audit_upload(file: UploadFile) -> dict:
     lower = file.filename.lower()
     # JSON ground-truth path (offline demo / tests without vision LLM)
     if lower.endswith(".json"):
-        import json
-
         data = json.loads(raw.decode("utf-8"))
         extracted = ExtractedBill.model_validate(data)
         report = run_audit_from_extracted(extracted)
@@ -265,22 +302,38 @@ async def _audit_upload(file: UploadFile) -> dict:
             detail="Upload a bill image (.jpg/.png) or a sample .json ground-truth file.",
         )
 
-    # Offline: if matching JSON sidecar exists under data/sample_bills, prefer rules path
-    # when no LLM key is configured (weak laptop / CI).
-    if not settings.LLM_API_KEY and not settings.LLM_FALLBACK_BASE_URL:
-        stem = os.path.splitext(os.path.basename(file.filename))[0]
-        sidecar = os.path.join("data", "sample_bills", f"{stem}.json")
-        if os.path.isfile(sidecar):
-            import json
+    sidecar = _load_sample_sidecar(file.filename)
 
-            with open(sidecar, encoding="utf-8") as f:
-                extracted = ExtractedBill.model_validate(json.load(f))
-            report = run_audit_from_extracted(extracted)
+    # Offline / CI: no LLM configured → rules path from matching sample JSON
+    if not settings.LLM_API_KEY and not settings.LLM_FALLBACK_BASE_URL and not settings.GROQ_API_KEY:
+        if sidecar is not None:
+            report = run_audit_from_extracted(sidecar, model="rules-only")
             return report.model_dump()
+        raise HTTPException(
+            status_code=503,
+            detail="Vision LLM not configured and no matching sample JSON sidecar found.",
+        )
 
-    image_bytes, mime = _resize_image(raw)
-    report = await run_audit(image_bytes, mime=mime)
-    return report.model_dump()
+    image_bytes, mime = _resize_image(raw, filename=file.filename)
+    try:
+        report = await run_audit(image_bytes, mime=mime)
+        return report.model_dump()
+    except Exception as e:
+        logger.exception("Vision /audit failed for %s: %s", file.filename, e)
+        # Demo never 500s on known sample photos — fall back to matching JSON.
+        if sidecar is not None:
+            report = run_audit_from_extracted(
+                sidecar,
+                model=f"{settings.LLM_MODEL}+json-fallback",
+            )
+            payload = report.model_dump()
+            payload["vision_fallback"] = True
+            payload["vision_error"] = str(e)[:300]
+            return payload
+        raise HTTPException(
+            status_code=500,
+            detail=f"Vision extract failed: {e}",
+        )
 
 
 @app.post("/audit", dependencies=[Depends(verify_api_key)])

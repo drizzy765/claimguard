@@ -8,26 +8,39 @@ import HistoryPage from "@/pages/HistoryPage";
 import AboutPage from "@/pages/AboutPage";
 import { useHealth } from "@/hooks/useHealth";
 import { useLocalHistory } from "@/hooks/useLocalHistory";
-import { defaultApiBase } from "@/lib/utils";
+import { defaultApiBase, defaultApiKey } from "@/lib/utils";
+
+const RENDER_HOST = "https://claimguard-sfxx.onrender.com";
 
 function initialApiBase() {
-  const stored = localStorage.getItem("CG_API_BASE");
   const fallback = defaultApiBase();
-  // On Vercel, prefer same-origin /cg-api proxy (avoids browser CORS flakiness).
+  const stored = (localStorage.getItem("CG_API_BASE") || "").trim();
   const onVercel =
     typeof window !== "undefined" && /\.vercel\.app$/i.test(window.location.hostname);
+
+  // Judges on Vercel: always use same-origin proxy unless they set a custom host.
   if (onVercel) {
-    const renderHost = "https://claimguard-sfxx.onrender.com";
-    if (!stored || stored === renderHost || stored.startsWith(renderHost)) {
+    if (!stored || stored === RENDER_HOST || stored.startsWith(RENDER_HOST)) {
       return "/cg-api";
     }
+    return stored;
   }
+
   return stored || fallback;
+}
+
+function initialApiKey() {
+  const stored = (localStorage.getItem("FACTORY_MASTER_KEY") || "").trim();
+  // Empty / placeholder label → bake in the live Render demo key so Settings is optional.
+  if (!stored || stored === "FACTORY_MASTER_KEY") {
+    return defaultApiKey();
+  }
+  return stored;
 }
 
 export default function App() {
   const [apiBase, setApiBase] = useState(initialApiBase);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("FACTORY_MASTER_KEY") || "");
+  const [apiKey, setApiKey] = useState(initialApiKey);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [markTone, setMarkTone] = useState("default");

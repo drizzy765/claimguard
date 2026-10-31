@@ -42,7 +42,7 @@ export default function SettingsDialog({
               Connection settings
             </h2>
             <p className="mt-1 text-sm text-ink-muted">
-              API host and the same master key the server uses as FACTORY_MASTER_KEY.
+              Pre-filled for the live demo — judges can audit without changing these.
             </p>
           </div>
           <button

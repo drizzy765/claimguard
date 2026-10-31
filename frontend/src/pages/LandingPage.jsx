@@ -72,7 +72,7 @@ export default function LandingPage() {
 
           <p className="mt-6 max-w-lg text-sm text-ink-muted">
             MIT licensed. Built for Hacktoberfest Hack Day. Synthetic sample bills only — never
-            real patient data. One-click demos need your FACTORY_MASTER_KEY in Settings.
+            real patient data. One-click demos work without setup.
           </p>
         </div>
 

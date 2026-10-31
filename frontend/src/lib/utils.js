@@ -46,3 +46,10 @@ export function defaultApiBase() {
   // Deployed ClaimGuard API (Render)
   return "https://claimguard-sfxx.onrender.com";
 }
+
+/** Public demo key — matches Render FACTORY_MASTER_KEY for judge testing. */
+export function defaultApiKey() {
+  const env = import.meta.env.VITE_FACTORY_MASTER_KEY;
+  if (env !== undefined && env !== "") return String(env);
+  return "change_me_to_a_long_random_string";
+}

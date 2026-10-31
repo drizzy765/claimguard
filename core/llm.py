@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import re
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, List, Optional, Type, TypeVar
 
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -16,6 +16,29 @@ from core.config import settings
 T = TypeVar("T", bound=BaseModel)
 
 
+def _groq_llm(temperature: float = 0.0):
+    """Build Groq client from env (ChatGroq if available, else OpenAI-compat URL)."""
+    if not settings.GROQ_API_KEY or not settings.GROQ_MODEL:
+        return None
+    try:
+        from langchain_groq import ChatGroq
+
+        return ChatGroq(
+            model=settings.GROQ_MODEL,
+            temperature=temperature,
+            api_key=settings.GROQ_API_KEY,
+            max_retries=0,
+        )
+    except Exception:
+        return ChatOpenAI(
+            model=settings.GROQ_MODEL,
+            base_url=settings.GROQ_BASE_URL,
+            api_key=settings.GROQ_API_KEY,
+            temperature=temperature,
+            max_retries=0,
+        )
+
+
 def get_llm(
     model: Optional[str] = None,
     temperature: float = 0.0,
@@ -24,17 +47,19 @@ def get_llm(
     client_cerebras_key: Optional[str] = None,
 ):
     """
-    Return a ChatOpenAI (OpenAI-compatible) client.
+    Return an LLM client with automatic failover:
 
-    Primary: LLM_BASE_URL / LLM_API_KEY / LLM_MODEL (or profile model override).
-    Fallback: LLM_FALLBACK_* if configured.
-    Legacy: Groq / Cerebras / OpenRouter only when primary key is empty (env model names).
+      1. Primary: LLM_BASE_URL / LLM_API_KEY / LLM_MODEL (Gemini Gemma 4)
+      2. Optional: LLM_FALLBACK_* (self-hosted Ollama/vLLM)
+      3. Groq: GROQ_API_KEY + GROQ_MODEL (credit / outage fallback)
+      4. Optional Cerebras / OpenRouter if configured
     """
     model_name = model or settings.LLM_MODEL
     primary_key = settings.LLM_API_KEY
     primary_base = settings.LLM_BASE_URL
+    fallbacks: List[Any] = []
 
-    # Prefer explicit ClaimGuard LLM_* routing
+    # --- Primary Gemini / OpenAI-compatible ---
     if primary_key or primary_base:
         primary = ChatOpenAI(
             model=model_name,
@@ -43,65 +68,61 @@ def get_llm(
             temperature=temperature,
             max_retries=1,
         )
-        fallbacks = []
-        if settings.LLM_FALLBACK_BASE_URL:
-            fallbacks.append(
-                ChatOpenAI(
-                    model=settings.LLM_FALLBACK_MODEL,
-                    base_url=settings.LLM_FALLBACK_BASE_URL,
-                    api_key=settings.LLM_FALLBACK_API_KEY or "ollama",
-                    temperature=temperature,
-                    max_retries=0,
-                )
+    else:
+        primary = None
+
+    # --- Self-hosted Ollama / vLLM ---
+    if settings.LLM_FALLBACK_BASE_URL:
+        fallbacks.append(
+            ChatOpenAI(
+                model=settings.LLM_FALLBACK_MODEL,
+                base_url=settings.LLM_FALLBACK_BASE_URL,
+                api_key=settings.LLM_FALLBACK_API_KEY or "ollama",
+                temperature=temperature,
+                max_retries=0,
             )
-        if fallbacks:
-            return primary.with_fallbacks(fallbacks)
-        return primary
-
-    # Legacy last-resort path — model names still from env only
-    groq_model = os_getenv("GROQ_MODEL", "")
-    if settings.GROQ_API_KEY and groq_model:
-        from langchain_groq import ChatGroq
-
-        primary = ChatGroq(
-            model=groq_model,
-            temperature=temperature,
-            api_key=settings.GROQ_API_KEY,
-            max_retries=0,
         )
-        fallbacks = []
-        cerebras_key = client_cerebras_key or settings.CEREBRAS_API_KEY
-        cerebras_model = os_getenv("CEREBRAS_MODEL", "")
-        if cerebras_key and cerebras_model:
-            fallbacks.append(
-                ChatOpenAI(
-                    model=cerebras_model,
-                    base_url="https://api.cerebras.ai/v1",
-                    api_key=cerebras_key,
-                    temperature=temperature,
-                )
+
+    # --- Groq credit / fail fallback (always after Gemini when key is set) ---
+    groq = _groq_llm(temperature)
+    if groq is not None:
+        fallbacks.append(groq)
+
+    # --- Optional extras ---
+    cerebras_key = client_cerebras_key or settings.CEREBRAS_API_KEY
+    if cerebras_key and settings.CEREBRAS_MODEL:
+        fallbacks.append(
+            ChatOpenAI(
+                model=settings.CEREBRAS_MODEL,
+                base_url="https://api.cerebras.ai/v1",
+                api_key=cerebras_key,
+                temperature=temperature,
+                max_retries=0,
             )
-        openrouter_key = client_openrouter_key or settings.OPENROUTER_API_KEY
-        openrouter_model = os_getenv("OPENROUTER_MODEL", "")
-        if openrouter_key and openrouter_model:
-            fallbacks.append(
-                ChatOpenAI(
-                    model=openrouter_model,
-                    base_url="https://openrouter.ai/api/v1",
-                    api_key=openrouter_key,
-                    temperature=temperature,
-                )
+        )
+    openrouter_key = client_openrouter_key or settings.OPENROUTER_API_KEY
+    if openrouter_key and settings.OPENROUTER_MODEL:
+        fallbacks.append(
+            ChatOpenAI(
+                model=settings.OPENROUTER_MODEL,
+                base_url="https://openrouter.ai/api/v1",
+                api_key=openrouter_key,
+                temperature=temperature,
+                max_retries=0,
             )
+        )
+
+    if primary is not None:
         return primary.with_fallbacks(fallbacks) if fallbacks else primary
 
-    # Deterministic mock for offline / pytest when no keys are set
+    # No Gemini key — promote Groq (or first fallback) to primary
+    if groq is not None:
+        rest = [f for f in fallbacks if f is not groq]
+        return groq.with_fallbacks(rest) if rest else groq
+    if fallbacks:
+        return fallbacks[0].with_fallbacks(fallbacks[1:]) if len(fallbacks) > 1 else fallbacks[0]
+
     return _MockLLM()
-
-
-def os_getenv(key: str, default: str = "") -> str:
-    import os
-
-    return os.getenv(key, default)
 
 
 class _MockLLM:
@@ -124,14 +145,12 @@ def _extract_json(text: str) -> Any:
     text = (text or "").strip()
     if not text:
         raise ValueError("Empty LLM response")
-    # Strip markdown fences if present
     fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
     if fence:
         text = fence.group(1).strip()
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # Find outermost object/array
         start_obj, start_arr = text.find("{"), text.find("[")
         if start_obj == -1 and start_arr == -1:
             raise
@@ -151,7 +170,6 @@ def parse_json_response(text: str, schema: Type[T], repair_once: bool = True) ->
     except Exception as first_err:
         if not repair_once:
             raise first_err
-        # Caller may pass already-repaired text; re-raise for pipeline to retry
         raise ValueError(f"JSON parse failed: {first_err}") from first_err
 
 
@@ -167,6 +185,8 @@ def vision_json(
     """
     Send a vision prompt + base64 image; expect JSON matching schema.
     Retries once with a repair prompt if parsing fails.
+    On Gemini credit/outage, get_llm() falls through to Groq (text models may
+    ignore the image — prefer JSON sample bills if vision fallback is weak).
     """
     llm = get_llm(model=model, temperature=0.0)
     content = [
@@ -206,7 +226,7 @@ def text_json(
     system: str = "",
     model: Optional[str] = None,
 ) -> T:
-    """Text-only JSON call with one repair retry."""
+    """Text-only JSON call with one repair retry (Gemini → Groq on failure)."""
     llm = get_llm(model=model, temperature=0.0)
     messages = []
     if system:

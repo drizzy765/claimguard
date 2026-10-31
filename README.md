@@ -132,6 +132,7 @@ docker run -p 8000:8000 --env-file .env claimguard
 
 ## Docs
 
+- [docs/deployment.plan.md](docs/deployment.plan.md) — **DigitalOcean / cloud backend deploy (when ready)**  
 - [docs/agent.md](docs/agent.md) — agent instructions & schemas  
 - [docs/architecture.md](docs/architecture.md) — system design  
 - [docs/implementation.plan.md](docs/implementation.plan.md) — hack day plan  

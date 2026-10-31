@@ -23,7 +23,7 @@ cd frontend; npm install; npm run dev
 ```
 LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 LLM_API_KEY=
-LLM_MODEL=gemma-4-26b-a4b-it
+LLM_MODEL=gemma-4-31b-it
 LLM_FALLBACK_BASE_URL=
 LLM_FALLBACK_API_KEY=ollama
 LLM_FALLBACK_MODEL=gemma4:12b

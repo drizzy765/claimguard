@@ -27,7 +27,7 @@ flowchart LR
   R --> FE
   PC -.-> CSV[(data/tariff_ng.csv)]
   subgraph LLM[core/llm.py OpenAI-compatible]
-    G1[Gemini API gemma-4-26b-a4b-it]
+    G1[Gemini API gemma-4-31b-it]
     G2[Self-hosted Ollama gemma4:12b<br/>DO GPU / Colab]
   end
   E & PC & ML & F --> LLM
@@ -46,7 +46,7 @@ Rules are computed in Python so the verdict is reproducible; Gemma does percepti
 | env | Gemini API | Self-host |
 |---|---|---|
 | LLM_BASE_URL | https://generativelanguage.googleapis.com/v1beta/openai/ | http://IP:11434/v1 |
-| LLM_MODEL | gemma-4-26b-a4b-it | gemma4:12b |
+| LLM_MODEL | gemma-4-31b-it | gemma4:12b |
 
 ## Deployment
 - Backend: existing Dockerfile → DigitalOcean App Platform (or $6 droplet). Secrets as encrypted env vars.

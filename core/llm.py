@@ -54,17 +54,19 @@ def get_llm(
       3. Groq: GROQ_API_KEY + GROQ_MODEL (credit / outage fallback)
       4. Optional Cerebras / OpenRouter if configured
     """
-    model_name = model or settings.LLM_MODEL
-    primary_key = settings.LLM_API_KEY
-    primary_base = settings.LLM_BASE_URL
+    # Profile may set model: null/empty — treat as "use env LLM_MODEL"
+    model_name = (model or "").strip() or settings.LLM_MODEL
+    primary_key = (settings.LLM_API_KEY or "").strip()
+    primary_base = (settings.LLM_BASE_URL or "").rstrip("/") + "/"
     fallbacks: List[Any] = []
 
-    # --- Primary Gemini / OpenAI-compatible ---
-    if primary_key or primary_base:
+    # --- 1. Primary: Gemini API Gemma (OpenAI-compatible) — only if key set ---
+    if primary_key:
         primary = ChatOpenAI(
             model=model_name,
-            base_url=primary_base or None,
-            api_key=primary_key or "not-needed",
+            base_url=primary_base
+            or "https://generativelanguage.googleapis.com/v1beta/openai/",
+            api_key=primary_key,
             temperature=temperature,
             max_retries=1,
         )

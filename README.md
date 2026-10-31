@@ -27,7 +27,7 @@ User bill photo → POST /audit → Extractor → (Price ‖ Medical) → Fraud 
 
 | Mode | Env | Model |
 |------|-----|--------|
-| **Gemini API** (demo primary) | `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/` | `gemma-4-26b-a4b-it` |
+| **Gemini API** (demo primary) | `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/` | `gemma-4-31b-it` |
 | **Self-hosted Ollama** | `LLM_BASE_URL=http://<host>:11434/v1` | `gemma4:12b` |
 
 Switch providers by changing only `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`. See [docs/gemma.md](docs/gemma.md).

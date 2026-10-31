@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         "https://generativelanguage.googleapis.com/v1beta/openai/",
     )
     LLM_API_KEY: str = os.getenv("LLM_API_KEY", "")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "gemma-4-26b-a4b-it")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "gemma-4-31b-it")
 
     # Optional self-hosted fallback (Ollama / vLLM) — tried before Groq
     LLM_FALLBACK_BASE_URL: str = os.getenv("LLM_FALLBACK_BASE_URL", "")

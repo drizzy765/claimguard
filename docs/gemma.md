@@ -5,7 +5,7 @@ Sources (checked Oct 31, 2026): https://gemma.ai/deployment/gemini-api/ · https
 ## TL;DR decision
 | Path | Time to working | Cost | Use for |
 |---|---|---|---|
-| **A. Gemini API `gemma-4-26b-a4b-it`** (PRIMARY) | 5 min | free tier (AI Studio key) | the live demo, always |
+| **A. Gemini API `gemma-4-31b-it`** (PRIMARY) | 5 min | free tier (AI Studio key) | the live demo, always |
 | **B. DigitalOcean GPU Droplet + Ollama `gemma4:12b`** | 20–30 min | RTX 4000 Ada 20 GB = **$0.76/h** → $25 ≈ 30 h | "self-hosted open weights" story |
 | C. Google Colab T4 + Ollama `gemma4:e4b` + cloudflared | 20 min | free | fallback if DO GPU quota is blocked |
 
@@ -20,14 +20,14 @@ Gemini API only hosts `gemma-4-31b-it` and `gemma-4-26b-a4b-it`. Ollama tags: `g
 ```
 LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 LLM_API_KEY=<your AI Studio key>
-LLM_MODEL=gemma-4-26b-a4b-it
+LLM_MODEL=gemma-4-31b-it
 ```
 3. Health check (PowerShell):
 ```powershell
 $k=$env:LLM_API_KEY
-curl.exe -s https://generativelanguage.googleapis.com/v1beta/openai/chat/completions -H "Authorization: Bearer $k" -H "Content-Type: application/json" -d '{\"model\":\"gemma-4-26b-a4b-it\",\"messages\":[{\"role\":\"user\",\"content\":\"say OK\"}]}'
+curl.exe -s https://generativelanguage.googleapis.com/v1beta/openai/chat/completions -H "Authorization: Bearer $k" -H "Content-Type: application/json" -d '{\"model\":\"gemma-4-31b-it\",\"messages\":[{\"role\":\"user\",\"content\":\"say OK\"}]}'
 ```
-If the OpenAI-compat route rejects the Gemma model id, fall back to the native SDK (`pip install google-genai`; `genai.Client().models.generate_content(model="gemma-4-26b-a4b-it", contents=[...])`) — `core/llm.py` should support both (see architecture.md). ASSUMPTION: OpenAI-compat endpoint accepts Gemma ids — verify in step 3.
+If the OpenAI-compat route rejects the Gemma model id, fall back to the native SDK (`pip install google-genai`; `genai.Client().models.generate_content(model="gemma-4-31b-it", contents=[...])`) — `core/llm.py` should support both (see architecture.md).
 
 ---
 ## B. DigitalOcean GPU Droplet + Ollama (open-weights story)
@@ -82,7 +82,7 @@ Caveats: session dies on idle/disconnect (keep tab open); URL changes each resta
 - Frontend: Vercel (repo already set up for it) with `VITE_API_URL=<backend url>`.
 
 ## Troubleshooting
-- `model not found` → `ollama list`; exact tag. Gemini: use `gemma-4-26b-a4b-it`.
+- `model not found` → `ollama list`; exact tag. Gemini: use `gemma-4-31b-it`.
 - Slow / OOM → smaller tag (12b → e4b → e2b), lower `OLLAMA_CONTEXT_LENGTH`.
 - Image ignored → send as OpenAI `image_url` with `data:image/jpeg;base64,...`; resize to ≤1280px first.
 - JSON broken → `response_format={"type":"json_object"}` (Ollama supports `format: json`), plus a repair-retry in code.

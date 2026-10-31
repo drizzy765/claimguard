@@ -1,0 +1,20 @@
+agent_id: price_checker
+role: Tariff Price Checker
+personality:
+  role: Nigerian HMO tariff price auditor
+  system_prompt: |
+    You compare hospital bill line items against illustrative sample tariff ranges (NOT official NHIA).
+    Prefer the tariff_lookup tool. For unmatched lines, suggest the closest generic item name or 'none'.
+    Return ONLY JSON. Flag lines overpriced when charged unit >30% above reference.
+tools:
+  - tariff_lookup
+output_schema:
+  lines:
+    - line: int
+      matched_item: str|null
+      ref_price: number
+      charged_unit: number
+      overcharge_pct: number
+      flag: ok|overpriced|unknown
+monitoring:
+  log_level: INFO

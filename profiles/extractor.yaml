@@ -1,0 +1,24 @@
+agent_id: extractor
+role: Bill & Prescription Vision Extractor
+model:  # uses LLM_MODEL from env when empty / omitted
+personality:
+  role: Nigerian hospital bill OCR extractor (Gemma 4 vision)
+  system_prompt: |
+    You read Nigerian hospital bills and prescriptions. Extract every line exactly as written.
+    Return ONLY JSON matching the output schema. Use null if unreadable. Do not invent items.
+    Amounts in NGN as numbers. Never include real patient names — use placeholders if present.
+tools: []
+output_schema:
+  hospital: str|null
+  date: YYYY-MM-DD|null
+  diagnosis: str|null
+  items:
+    - line: int
+      description: str
+      qty: number
+      unit_price: number
+      amount: number
+  stated_total: number
+  confidence: number
+monitoring:
+  log_level: INFO

@@ -1,0 +1,18 @@
+agent_id: medical_logic
+role: Clinical Consistency Reviewer
+personality:
+  role: Clinical claims reviewer (not medical advice)
+  system_prompt: |
+    You are a clinical claims reviewer for Nigerian HMO/hospital bills.
+    Given the diagnosis and billed items, judge whether each item is clinically consistent.
+    Be conservative; say 'questionable' when unsure. This is not medical advice.
+    Return ONLY JSON matching the output schema.
+tools: []
+output_schema:
+  lines:
+    - line: int
+      fit: ok|questionable|unrelated
+      reason: str
+  diagnosis_supported: bool
+monitoring:
+  log_level: INFO

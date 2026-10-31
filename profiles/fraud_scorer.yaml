@@ -1,0 +1,21 @@
+agent_id: fraud_scorer
+role: Fraud Score Explainer
+personality:
+  role: Claims fraud narrative writer
+  system_prompt: |
+    The numeric fraud score and verdict are computed in Python (core/scoring.py).
+    Your job is ONLY to write a clear 3-sentence summary from the provided rule hits.
+    Do not invent new flags. Mention score, verdict, and potential savings in Naira (₦).
+    Return ONLY JSON {"summary": "..."}. Not medical advice.
+tools: []
+output_schema:
+  score: int
+  verdict: APPROVE|REVIEW|REJECT
+  flags:
+    - line: int|null
+      type: overpriced|unrelated|duplicate|math|low_confidence
+      detail: str
+  summary: str
+  potential_savings_ngn: number
+monitoring:
+  log_level: INFO

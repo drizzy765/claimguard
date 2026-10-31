@@ -1,21 +1,26 @@
+import io
 import os
+from typing import Optional
+
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile, Request
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-import io
-import pypdf
-from core.rag_engine import add_document
-from core.chassis import AgentChassis
 from pydantic import BaseModel, Field
-from langchain_groq import ChatGroq
-from langchain_openai import ChatOpenAI
-from core.config import settings
 
-# Load environment variables from .env file at startup
+from core.chassis import AgentChassis
+from core.config import settings
+from core.llm import get_llm
+from core.pipeline import run_audit, run_audit_from_extracted
+from core.schemas import ExtractedBill
+
 load_dotenv()
 
-app = FastAPI(title="AI Agent Factory Core Runtime Engine")
+app = FastAPI(
+    title="ClaimGuard",
+    description="Nigerian HMO/hospital bill claim auditor on Gemma 4 (agent-factory chassis)",
+    version="0.1.0",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,196 +30,255 @@ app.add_middleware(
     allow_headers=["*", "X-Client-OpenRouter-Key", "X-Client-Cerebras-Key"],
 )
 
-# Define API Key header security scheme
 API_KEY_NAME = "X-Factory-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
+CLAIMGUARD_PROFILES = (
+    "extractor",
+    "price_checker",
+    "medical_logic",
+    "fraud_scorer",
+)
+
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+
 async def verify_api_key(api_key: str = Depends(api_key_header)):
-    master_key = os.getenv("FACTORY_MASTER_KEY")
+    master_key = os.getenv("FACTORY_MASTER_KEY") or settings.FACTORY_MASTER_KEY
     if not master_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server misconfiguration: FACTORY_MASTER_KEY environment variable is not set."
+            detail="Server misconfiguration: FACTORY_MASTER_KEY environment variable is not set.",
         )
     if not api_key or api_key != master_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials. Invalid or missing API key."
+            detail="Could not validate credentials. Invalid or missing API key.",
         )
 
-# --- SUPERVISOR ROUTING SCHEMA ---
+
 class AgentRoute(BaseModel):
     destination: str = Field(
-        description="The exact profile name to route to. Must be exactly one of: '01_market_analyst', '02_ai_trust', '03_outbound_sdr'."
+        description=(
+            "The exact profile name to route to. Must be exactly one of: "
+            "'extractor', 'price_checker', 'medical_logic', 'fraud_scorer'."
+        )
     )
-    reasoning: str = Field(
-        description="A brief 1-sentence explanation of why this agent was chosen."
-    )
+    reasoning: str = Field(description="A brief 1-sentence explanation of why this agent was chosen.")
+
+
+def _resize_image(data: bytes, max_side: int = 1280) -> tuple[bytes, str]:
+    """Resize with Pillow when available; otherwise pass through as JPEG/PNG."""
+    mime = "image/jpeg"
+    try:
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(data))
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        w, h = img.size
+        scale = min(1.0, max_side / max(w, h))
+        if scale < 1.0:
+            img = img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        return buf.getvalue(), "image/jpeg"
+    except Exception:
+        return data, mime
+
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "OK",
+        "service": "ClaimGuard",
+        "model": settings.LLM_MODEL,
+        "profiles": list(CLAIMGUARD_PROFILES),
+    }
+
 
 @app.post("/supervisor", dependencies=[Depends(verify_api_key)])
 async def factory_supervisor(user_payload: dict, request: Request):
     user_input = user_payload.get("input", "")
-    
-    # Extract client headers if present
     client_openrouter_key = request.headers.get("X-Client-OpenRouter-Key")
     client_cerebras_key = request.headers.get("X-Client-Cerebras-Key")
-    
-    # 1. Initialize robust LLM routing with fallbacks for supervisor
-    primary_llm = ChatGroq(
-        model="llama-3.3-70b-versatile",
-        temperature=0,
-        api_key=settings.GROQ_API_KEY,
-        max_retries=0
-    )
-    
-    fallbacks = []
-    cerebras_key = client_cerebras_key if client_cerebras_key else settings.CEREBRAS_API_KEY
-    if cerebras_key:
-        cerebras_llm = ChatOpenAI(
-            model="llama-3.1-70b",
-            base_url="https://api.cerebras.ai/v1",
-            api_key=cerebras_key,
-            temperature=0
-        )
-        fallbacks.append(cerebras_llm)
-        
-    openrouter_key = client_openrouter_key if client_openrouter_key else settings.OPENROUTER_API_KEY
-    if openrouter_key:
-        openrouter_llm = ChatOpenAI(
-            model="meta-llama/llama-3.3-70b-instruct",
-            base_url="https://openrouter.ai/api/v1",
-            api_key=openrouter_key,
-            temperature=0
-        )
-        fallbacks.append(openrouter_llm)
-        
-    if fallbacks:
-        robust_llm = primary_llm.with_fallbacks(fallbacks)
-    else:
-        robust_llm = primary_llm
 
-    structured_router = robust_llm.with_structured_output(AgentRoute, method="json_mode")
-    
-    # 2. Tighten the prompt to focus on actions, not buzzwords
-    routing_prompt = f"""You are the Factory Floor Supervisor. 
-    Analyze the user's request and assign it to the correct specialist agent based on the PRIMARY ACTION required.
-    
-    You MUST respond with a JSON object containing exactly these keys:
-    - 'destination': The exact profile name to route to. Must be exactly one of: '01_market_analyst', '02_ai_trust', '03_outbound_sdr'.
-    - 'reasoning': A brief 1-sentence explanation of why this agent was chosen.
-    
-    Specialist Agent Floor Plan:
-    - '01_market_analyst': Choose this ONLY if the user wants financial data analysis, economic research, or market trends.
-    - '02_ai_trust': Choose this ONLY if the user explicitly asks to mask, redact, sanitize, or secure sensitive data (PII).
-    - '03_outbound_sdr': Choose this if the user wants to draft an email, pitch a product, or do sales outreach.
-    
-    CRITICAL: Ignore product buzzwords like "AI" in the user's request. Focus strictly on the core task.
-    
-    User Request: {user_input}"""
-    
-    try:
-        # 3. Ask the LLM to make a routing decision
-        decision = structured_router.invoke(routing_prompt)
-        
-        # 4. Dynamically spin up the chosen agent chassis
+    llm = get_llm(
+        temperature=0,
+        client_openrouter_key=client_openrouter_key,
+        client_cerebras_key=client_cerebras_key,
+    )
+
+    # Offline / mock path: keyword route without structured LLM
+    if not settings.LLM_API_KEY and not settings.LLM_FALLBACK_BASE_URL:
+        low = (user_input or "").lower()
+        if any(k in low for k in ("price", "tariff", "overcharge", "naira")):
+            dest, reason = "price_checker", "Keyword route: pricing/tariff."
+        elif any(k in low for k in ("diagnosis", "clinical", "medical", "fit")):
+            dest, reason = "medical_logic", "Keyword route: clinical consistency."
+        elif any(k in low for k in ("fraud", "score", "verdict", "reject")):
+            dest, reason = "fraud_scorer", "Keyword route: fraud scoring."
+        else:
+            dest, reason = "extractor", "Default route: extraction."
         worker = AgentChassis(
-            profile_name=decision.destination,
+            profile_name=dest,
             client_openrouter_key=client_openrouter_key,
-            client_cerebras_key=client_cerebras_key
+            client_cerebras_key=client_cerebras_key,
         )
-        
-        # 5. Execute the task using the chosen worker
+        try:
+            worker_output = worker.run(user_input)
+        except Exception as e:
+            worker_output = f"Chassis ready ({dest}). Detail: {e}"
+        return {
+            "status": "Success",
+            "supervisor": {"delegated_to": dest, "reasoning": reason},
+            "worker_output": worker_output,
+        }
+
+    structured_router = llm.with_structured_output(AgentRoute, method="json_mode")
+    routing_prompt = f"""You are the ClaimGuard Floor Supervisor.
+Assign the request to exactly one specialist profile based on PRIMARY ACTION.
+
+Respond with JSON keys:
+- destination: one of {list(CLAIMGUARD_PROFILES)}
+- reasoning: one sentence
+
+Floor plan:
+- extractor: OCR / read bill or prescription images into structured line items
+- price_checker: compare items to sample Nigerian tariffs
+- medical_logic: judge clinical fit of items vs diagnosis
+- fraud_scorer: explain fraud score / verdict narrative
+
+User Request: {user_input}"""
+
+    try:
+        decision = structured_router.invoke(routing_prompt)
+        destination = decision.destination
+        if destination not in CLAIMGUARD_PROFILES:
+            destination = "extractor"
+        worker = AgentChassis(
+            profile_name=destination,
+            client_openrouter_key=client_openrouter_key,
+            client_cerebras_key=client_cerebras_key,
+        )
         worker_output = worker.run(user_input)
-        
         return {
             "status": "Success",
             "supervisor": {
-                "delegated_to": decision.destination,
-                "reasoning": decision.reasoning
+                "delegated_to": destination,
+                "reasoning": decision.reasoning,
             },
-            "worker_output": worker_output
+            "worker_output": worker_output,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Supervisor Routing Failed: {str(e)}")
 
+
 @app.post("/upload", dependencies=[Depends(verify_api_key)])
 async def upload_document(file: UploadFile = File(...)):
-    filename = file.filename
-    if not (filename.endswith(".txt") or filename.endswith(".csv") or filename.endswith(".pdf")):
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported file format. Please upload a .txt, .csv, or .pdf file."
-        )
-        
-    try:
-        content = await file.read()
-        
-        if filename.endswith(".pdf"):
-            pdf_file = io.BytesIO(content)
-            reader = pypdf.PdfReader(pdf_file)
-            text = ""
-            for page in reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-        else:
-            text = content.decode("utf-8", errors="ignore")
-            
-        if not text.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="File content is empty or could not be parsed."
-            )
-            
-        add_document(text, filename)
-        
-        return {
-            "status": "Success",
-            "filename": filename,
-            "message": f"Successfully parsed and indexed {filename} into company knowledge base."
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process and index file: {str(e)}"
-        )
+    """
+    Accept a bill image or text/csv/pdf note for the workspace.
+    RAG/Chroma removed — files are acknowledged only (use POST /audit for claim audit).
+    """
+    filename = file.filename or "upload.bin"
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="File too large (max 5 MB).")
+    return {
+        "status": "Success",
+        "filename": filename,
+        "bytes": len(content),
+        "message": (
+            f"Received {filename}. Vector RAG is disabled in ClaimGuard; "
+            "POST the image to /audit for a full claim audit."
+        ),
+    }
 
-@app.get("/health")
-def health_check():
-    return {"status": "Factory Floor Functional", "tier_routing": "Cloudflare/Multi-Cloud Verified"}
 
 @app.post("/run/{agent_profile}", dependencies=[Depends(verify_api_key)])
 async def execute_agent(agent_profile: str, user_payload: dict, request: Request):
     try:
-        # Extract client headers if present
         client_openrouter_key = request.headers.get("X-Client-OpenRouter-Key")
         client_cerebras_key = request.headers.get("X-Client-Cerebras-Key")
-
-        # Step 1: Instantly morph the chassis into the requested personality
         factory_instance = AgentChassis(
             profile_name=agent_profile,
             client_openrouter_key=client_openrouter_key,
-            client_cerebras_key=client_cerebras_key
+            client_cerebras_key=client_cerebras_key,
         )
-
-        # Step 2: Extract system instructions and tool assignments
         persona = factory_instance.profile.get("personality") or {}
         allocated_tools = factory_instance.profile.get("tools") or []
-
-        # Step 3: Run the reasoning loop via LangGraph
         user_input = user_payload.get("input", "")
         output = factory_instance.run(user_input)
-
         return {
             "status": "Success",
             "activated_profile": agent_profile,
             "meta": {
-                "role": persona.get("role") or factory_instance.profile.get("role") or "Unknown Role",
-                "allocated_tools_count": len(allocated_tools)
+                "role": persona.get("role")
+                or factory_instance.profile.get("role")
+                or "Unknown Role",
+                "allocated_tools_count": len(allocated_tools),
             },
-            "output": output
+            "output": output,
         }
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Profile '{agent_profile}' does not exist on this floor.")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Profile '{agent_profile}' does not exist on this floor.",
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _audit_upload(file: UploadFile) -> dict:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Missing filename.")
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty file.")
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="File too large (max 5 MB).")
+
+    lower = file.filename.lower()
+    # JSON ground-truth path (offline demo / tests without vision LLM)
+    if lower.endswith(".json"):
+        import json
+
+        data = json.loads(raw.decode("utf-8"))
+        extracted = ExtractedBill.model_validate(data)
+        report = run_audit_from_extracted(extracted)
+        return report.model_dump()
+
+    if not any(lower.endswith(ext) for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif")):
+        raise HTTPException(
+            status_code=400,
+            detail="Upload a bill image (.jpg/.png) or a sample .json ground-truth file.",
+        )
+
+    # Offline: if matching JSON sidecar exists under data/sample_bills, prefer rules path
+    # when no LLM key is configured (weak laptop / CI).
+    if not settings.LLM_API_KEY and not settings.LLM_FALLBACK_BASE_URL:
+        stem = os.path.splitext(os.path.basename(file.filename))[0]
+        sidecar = os.path.join("data", "sample_bills", f"{stem}.json")
+        if os.path.isfile(sidecar):
+            import json
+
+            with open(sidecar, encoding="utf-8") as f:
+                extracted = ExtractedBill.model_validate(json.load(f))
+            report = run_audit_from_extracted(extracted)
+            return report.model_dump()
+
+    image_bytes, mime = _resize_image(raw)
+    report = await run_audit(image_bytes, mime=mime)
+    return report.model_dump()
+
+
+@app.post("/audit", dependencies=[Depends(verify_api_key)])
+async def audit_claim(file: UploadFile = File(...)):
+    """POST multipart bill image → AuditReport JSON."""
+    return await _audit_upload(file)
+
+
+@app.post("/claimguard/audit", dependencies=[Depends(verify_api_key)])
+async def audit_claim_alias(file: UploadFile = File(...)):
+    """Alias matching docs/agent.md path."""
+    return await _audit_upload(file)

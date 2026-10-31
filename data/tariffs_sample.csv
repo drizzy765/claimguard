@@ -1,0 +1,45 @@
+item,category,unit,ref_price_ngn,note
+Paracetamol 500mg,drug,tablet,50,SAMPLE illustrative — not official NHIA
+Paracetamol syrup,drug,bottle,800,SAMPLE illustrative — not official NHIA
+Ibuprofen 400mg,drug,tablet,80,SAMPLE illustrative — not official NHIA
+Amoxicillin 500mg,drug,capsule,150,SAMPLE illustrative — not official NHIA
+Artemether-Lumefantrine,drug,course,2500,SAMPLE illustrative — not official NHIA
+ACT (AL) adult,drug,course,2500,SAMPLE illustrative — not official NHIA
+Ciprofloxacin 500mg,drug,tablet,200,SAMPLE illustrative — not official NHIA
+Metronidazole 400mg,drug,tablet,100,SAMPLE illustrative — not official NHIA
+ORS sachet,drug,sachet,100,SAMPLE illustrative — not official NHIA
+ORS,drug,sachet,100,SAMPLE illustrative — not official NHIA
+IV Normal Saline 500ml,drug,bag,1200,SAMPLE illustrative — not official NHIA
+IV Fluids,drug,bag,1200,SAMPLE illustrative — not official NHIA
+Injection Diclofenac,drug,ampoule,500,SAMPLE illustrative — not official NHIA
+Injection Ceftriaxone 1g,drug,vial,2500,SAMPLE illustrative — not official NHIA
+Multivitamin,drug,tablet,40,SAMPLE illustrative — not official NHIA
+Malaria RDT,lab,test,1500,SAMPLE illustrative — not official NHIA
+Rapid Diagnostic Test Malaria,lab,test,1500,SAMPLE illustrative — not official NHIA
+FBC,lab,test,3500,SAMPLE illustrative — not official NHIA
+Full Blood Count,lab,test,3500,SAMPLE illustrative — not official NHIA
+Widal test,lab,test,2000,SAMPLE illustrative — not official NHIA
+MP (Malaria Parasite),lab,test,1500,SAMPLE illustrative — not official NHIA
+Urinalysis,lab,test,1200,SAMPLE illustrative — not official NHIA
+Blood Glucose,lab,test,800,SAMPLE illustrative — not official NHIA
+HIV screening,lab,test,2500,SAMPLE illustrative — not official NHIA
+Hepatitis B screening,lab,test,3000,SAMPLE illustrative — not official NHIA
+Chest X-ray,imaging,study,8000,SAMPLE illustrative — not official NHIA
+Ultrasound abdomen,imaging,study,12000,SAMPLE illustrative — not official NHIA
+ECG,imaging,study,5000,SAMPLE illustrative — not official NHIA
+Consultation GP,service,visit,3000,SAMPLE illustrative — not official NHIA
+Consultation Specialist,service,visit,7000,SAMPLE illustrative — not official NHIA
+Consultation,service,visit,3000,SAMPLE illustrative — not official NHIA
+Bed / day (general ward),service,day,8000,SAMPLE illustrative — not official NHIA
+Admission per day,service,day,8000,SAMPLE illustrative — not official NHIA
+Nursing care,service,day,2000,SAMPLE illustrative — not official NHIA
+Wound dressing,procedure,session,2500,SAMPLE illustrative — not official NHIA
+Suturing,procedure,session,5000,SAMPLE illustrative — not official NHIA
+Nebulization,procedure,session,1500,SAMPLE illustrative — not official NHIA
+Oxygen therapy per hour,procedure,hour,2000,SAMPLE illustrative — not official NHIA
+ANC registration,service,visit,5000,SAMPLE illustrative — not official NHIA
+Delivery normal,procedure,event,45000,SAMPLE illustrative — not official NHIA
+Dental scaling,procedure,session,15000,SAMPLE illustrative — not official NHIA
+MRI Brain,imaging,study,120000,SAMPLE illustrative — not official NHIA
+Chemotherapy session,procedure,session,80000,SAMPLE illustrative — not official NHIA
+Dialysis session,procedure,session,45000,SAMPLE illustrative — not official NHIA

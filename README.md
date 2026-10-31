@@ -78,17 +78,32 @@ curl -X POST http://127.0.0.1:8000/audit -H "X-Factory-API-Key: $FACTORY_MASTER_
 
 ### Cloud deploy (no local Docker Desktop)
 
-**Recommended: Render** — builds the Dockerfile in the cloud and serves API + UI on one URL.
+One container serves **API + UI** (same origin). Pick either host:
 
-1. Open [Render Dashboard → New → Blueprint](https://dashboard.render.com/select-repo?type=blueprint) and connect `drizzy765/claimguard` (uses `render.yaml`).
-2. When prompted, set secrets:
-   - `FACTORY_MASTER_KEY` — any long random string (paste the same into the UI)
-   - `LLM_API_KEY` — Google AI Studio key for Gemma 4 (optional for JSON sample demos)
-3. Deploy → open `https://claimguard-xxxx.onrender.com` → `/health` should return `OK`.
+#### DigitalOcean App Platform (recommended for this hack day)
 
-Or **New → Web Service** → repo `claimguard` → **Docker** → same env vars → Create.
+1. Open [Create App](https://cloud.digitalocean.com/apps/new) → **GitHub** → `drizzy765/claimguard` → branch `main`.
+2. Detect **Dockerfile** → HTTP port **8000** → smallest Basic plan (~$5/mo; use $25 credit if you have it).
+3. **Env vars** (App → Settings → App-Level / component env):
 
-Free tier cold-starts in ~30–60s after idle — hit `/health` once before the demo.
+| Key | Value |
+|-----|--------|
+| `FACTORY_MASTER_KEY` | long random string (same one you paste in the UI) |
+| `LLM_API_KEY` | Google AI Studio key |
+| `LLM_MODEL` | `gemma-4-31b-it` |
+| `LLM_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` |
+| `GROQ_API_KEY` | Groq key (Gemini credit/outage fallback) |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` |
+
+4. Deploy → open `https://claimguard-xxxx.ondigitalocean.app` → `/health` → `OK`.
+
+Spec file: [`.do/app.yaml`](.do/app.yaml) (optional: `doctl apps create --spec .do/app.yaml` after `doctl auth init`).
+
+#### Render (alternative)
+
+1. [New → Blueprint](https://dashboard.render.com/select-repo?type=blueprint) → `drizzy765/claimguard` (`render.yaml`).
+2. Set `FACTORY_MASTER_KEY`, `LLM_API_KEY`, `GROQ_API_KEY`.
+3. Open `https://claimguard-xxxx.onrender.com` — free tier cold-starts after idle.
 
 ### Docker (optional / cloud builders)
 

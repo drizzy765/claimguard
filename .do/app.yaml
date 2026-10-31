@@ -1,0 +1,55 @@
+# DigitalOcean App Platform — builds Dockerfile in the cloud (no Docker Desktop).
+# Dashboard: https://cloud.digitalocean.com/apps/new
+# Or: doctl apps create --spec .do/app.yaml
+name: claimguard
+region: nyc
+services:
+  - name: web
+    github:
+      repo: drizzy765/claimguard
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /health
+    envs:
+      - key: ENVIRONMENT
+        value: production
+        scope: RUN_TIME
+      - key: PORT
+        value: "8000"
+        scope: RUN_TIME
+      - key: LLM_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta/openai/
+        scope: RUN_TIME
+      - key: LLM_MODEL
+        value: gemma-4-31b-it
+        scope: RUN_TIME
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+        scope: RUN_TIME
+      - key: GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+        scope: RUN_TIME
+      - key: LLM_FALLBACK_API_KEY
+        value: ollama
+        scope: RUN_TIME
+      - key: LLM_FALLBACK_MODEL
+        value: gemma4:12b
+        scope: RUN_TIME
+      # Secrets — set in the DO UI (or doctl); never commit real values
+      - key: FACTORY_MASTER_KEY
+        type: SECRET
+        scope: RUN_TIME
+      - key: LLM_API_KEY
+        type: SECRET
+        scope: RUN_TIME
+      - key: GROQ_API_KEY
+        type: SECRET
+        scope: RUN_TIME
+      - key: LLM_FALLBACK_BASE_URL
+        type: SECRET
+        scope: RUN_TIME

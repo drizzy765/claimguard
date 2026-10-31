@@ -17,9 +17,7 @@ export default function ClaimGuard() {
   const [backendUrl, setBackendUrl] = useState(
     import.meta.env.VITE_API_URL !== undefined && import.meta.env.VITE_API_URL !== ""
       ? import.meta.env.VITE_API_URL
-      : import.meta.env.PROD
-        ? "" // same-origin when served from FastAPI/Docker
-        : "http://127.0.0.1:8000"
+      : "https://claimguard-sfxx.onrender.com"
   );
   const [apiKey, setApiKey] = useState(
     localStorage.getItem("FACTORY_MASTER_KEY") || ""
@@ -143,7 +141,7 @@ export default function ClaimGuard() {
           <input
             value={backendUrl}
             onChange={(e) => setBackendUrl(e.target.value)}
-            placeholder="http://127.0.0.1:8000"
+            placeholder="https://claimguard-sfxx.onrender.com"
           />
         </label>
         <label className="cg-field">

@@ -11,12 +11,14 @@ import { useLocalHistory } from "@/hooks/useLocalHistory";
 import { defaultApiBase } from "@/lib/utils";
 
 export default function App() {
-  const [apiBase, setApiBase] = useState(() => localStorage.getItem("CG_API_BASE") || defaultApiBase());
+  const [apiBase, setApiBase] = useState(
+    () => localStorage.getItem("CG_API_BASE") || defaultApiBase()
+  );
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("FACTORY_MASTER_KEY") || "");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [markTone, setMarkTone] = useState("default");
-  const { status } = useHealth(apiBase);
+  const { status, refetch } = useHealth(apiBase);
   const history = useLocalHistory();
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export default function App() {
       <AppShell
         health={status}
         onOpenSettings={() => setSettingsOpen(true)}
+        onRetryHealth={refetch}
         scanning={scanning}
         markTone={markTone}
       >
@@ -46,6 +49,7 @@ export default function App() {
                 onHistory={history.push}
                 setScanning={setScanning}
                 setMarkTone={setMarkTone}
+                onNeedSettings={() => setSettingsOpen(true)}
               />
             }
           />

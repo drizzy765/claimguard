@@ -44,7 +44,11 @@ ClaimGuard adds: `core/llm.py`, `core/pipeline.py`, `core/scoring.py`, `core/sch
 
 - **API / app:** https://claimguard-sfxx.onrender.com/  
 - Health: https://claimguard-sfxx.onrender.com/health  
-- Free Render tier may cold-start (~30–60s) after idle — hit `/health` once before demos.
+- Free Render tier may cold-start (~30–60s) after idle — hit `/health` once (or use **Retry** in the UI) before demos.
+- **One-click samples** (set `FACTORY_MASTER_KEY` in Settings first):  
+  - Padded → FRAUD RISK: open the app → **Try padded → FRAUD RISK**  
+  - Clean → CLEAN: **Try clean → CLEAN**  
+  Or go to `/audit?sample=bill_padded.json` / `/audit?sample=bill_clean.json`.
 
 ## Quick start
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  Copy,
   Download,
   Printer,
   RotateCcw,
@@ -12,7 +13,7 @@ import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import LineItemsTable from "@/components/audit/LineItemsTable";
-import { formatNaira, verdictLabel, verdictTone } from "@/lib/utils";
+import { formatNaira, modelLabel, verdictLabel, verdictTone } from "@/lib/utils";
 
 function ScoreTicker({ value }) {
   const [n, setN] = useState(0);
@@ -37,11 +38,15 @@ function ScoreTicker({ value }) {
 }
 
 export default function AuditReport({ report, preview, onRerun }) {
+  const [copied, setCopied] = useState(false);
   if (!report) return null;
   const tone = verdictTone(report.fraud?.verdict);
   const label = verdictLabel(report.fraud?.verdict);
   const Icon =
     tone === "clean" ? CheckCircle2 : tone === "fraud" ? ShieldAlert : AlertTriangle;
+  const flagCount = (report.fraud?.flags || []).length;
+  const savings = formatNaira(report.fraud?.potential_savings_ngn);
+  const gemma = modelLabel(report.model);
 
   const exportJson = () => {
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
@@ -51,6 +56,27 @@ export default function AuditReport({ report, preview, onRerun }) {
     a.download = `claimguard-audit-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const copySummary = async () => {
+    const text = [
+      `ClaimGuard audit: ${label} (${report.fraud?.verdict})`,
+      `Score: ${report.fraud?.score}/100`,
+      `Flags: ${flagCount}`,
+      `Potential savings: ${savings}`,
+      `Model: ${gemma} (${report.model || "—"})`,
+      `Latency: ${report.latency_ms} ms`,
+      report.fraud?.summary || "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
   };
 
   const bannerMsg =
@@ -82,8 +108,14 @@ export default function AuditReport({ report, preview, onRerun }) {
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-display text-2xl font-semibold tracking-tight">{label}</h2>
             <Badge tone={tone}>{report.fraud?.verdict}</Badge>
+            <Badge tone="leaf">{gemma}</Badge>
+            <span className="text-xs tabular text-ink-muted">{report.latency_ms} ms</span>
           </div>
           <p className="mt-1 text-sm font-medium">{bannerMsg}</p>
+          <p className="mt-2 text-sm font-semibold text-ink">
+            {flagCount} flag{flagCount === 1 ? "" : "s"} · Potential savings{" "}
+            <span className="tabular text-leaf-deep">{savings}</span>
+          </p>
           <p className="mt-2 text-sm text-ink-muted">{report.fraud?.summary}</p>
         </div>
       </div>
@@ -105,9 +137,7 @@ export default function AuditReport({ report, preview, onRerun }) {
             <CardTitle className="text-base">Potential savings</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-display text-3xl font-semibold tabular">
-              {formatNaira(report.fraud?.potential_savings_ngn)}
-            </p>
+            <p className="font-display text-3xl font-semibold tabular">{savings}</p>
           </CardContent>
         </Card>
         <Card>
@@ -115,7 +145,8 @@ export default function AuditReport({ report, preview, onRerun }) {
             <CardTitle className="text-base">Model · latency</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-ink">{report.model || "—"}</p>
+            <p className="text-sm font-medium text-ink">{gemma}</p>
+            <p className="mt-1 text-xs text-ink-muted">{report.model || "—"}</p>
             <p className="mt-1 text-sm tabular text-ink-muted">{report.latency_ms} ms</p>
           </CardContent>
         </Card>
@@ -198,6 +229,9 @@ export default function AuditReport({ report, preview, onRerun }) {
       </Alert>
 
       <div className="no-print flex flex-wrap gap-2">
+        <Button variant="secondary" onClick={copySummary}>
+          <Copy size={16} /> {copied ? "Copied" : "Copy summary"}
+        </Button>
         <Button variant="secondary" onClick={exportJson}>
           <Download size={16} /> Export JSON
         </Button>

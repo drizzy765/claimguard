@@ -57,9 +57,22 @@ export default function LandingPage() {
             </a>
           </div>
 
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link to="/audit?sample=bill_padded.json">
+              <Button variant="secondary" size="sm">
+                Try padded → FRAUD RISK
+              </Button>
+            </Link>
+            <Link to="/audit?sample=bill_clean.json">
+              <Button variant="secondary" size="sm">
+                Try clean → CLEAN
+              </Button>
+            </Link>
+          </div>
+
           <p className="mt-6 max-w-lg text-sm text-ink-muted">
             MIT licensed. Built for Hacktoberfest Hack Day. Synthetic sample bills only — never
-            real patient data.
+            real patient data. One-click demos need your FACTORY_MASTER_KEY in Settings.
           </p>
         </div>
 

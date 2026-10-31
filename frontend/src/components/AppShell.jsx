@@ -1,5 +1,5 @@
 import { NavLink, Link } from "react-router-dom";
-import { Github, Settings } from "lucide-react";
+import { Github, RefreshCw, Settings } from "lucide-react";
 import ClaimGuardMark from "@/components/ClaimGuardMark";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ export default function AppShell({
   children,
   health,
   onOpenSettings,
+  onRetryHealth,
   scanning = false,
   markTone = "default",
   bare = false,
@@ -69,6 +70,16 @@ export default function AppShell({
               />
               {health}
             </span>
+            {health === "offline" && onRetryHealth && (
+              <button
+                type="button"
+                onClick={onRetryHealth}
+                className="inline-flex items-center gap-1 rounded-md border border-line bg-surface px-2 py-1 text-[11px] font-semibold text-ink-muted hover:text-ink"
+                title="Retry health check"
+              >
+                <RefreshCw size={12} /> Retry
+              </button>
+            )}
             <a
               href="https://github.com/drizzy765/claimguard"
               target="_blank"
@@ -88,8 +99,16 @@ export default function AppShell({
             </button>
           </div>
         </div>
+        {health === "offline" && (
+          <div className="border-t border-fraud/20 bg-fraud-bg px-4 py-2 text-center text-xs text-fraud">
+            API offline — Render free tier may be waking (30–60s). Press Retry, then run an audit.
+          </div>
+        )}
         {!bare && (
-          <nav className="flex gap-1 overflow-x-auto border-t border-line px-4 py-2 sm:hidden" aria-label="Mobile">
+          <nav
+            className="flex gap-1 overflow-x-auto border-t border-line px-4 py-2 sm:hidden"
+            aria-label="Mobile"
+          >
             {links.map((l) => (
               <NavLink
                 key={l.to}

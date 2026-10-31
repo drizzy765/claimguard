@@ -22,6 +22,24 @@ export function formatNaira(n) {
   return `₦${v.toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
 }
 
+/** Human label for judges: how Gemma / fallback was used */
+export function modelLabel(model) {
+  const m = String(model || "").toLowerCase();
+  if (!m || m === "rules-only" || m.includes("rules")) {
+    return "Rules-only (no LLM)";
+  }
+  if (m.includes("gemma-4") || m.includes("gemma4")) {
+    if (m.includes(":") || m.includes("ollama")) {
+      return "Gemma 4 · self-hosted";
+    }
+    return "Gemma 4 · Gemini API";
+  }
+  if (m.includes("llama") || m.includes("groq")) {
+    return "Groq fallback";
+  }
+  return String(model);
+}
+
 export function defaultApiBase() {
   const env = import.meta.env.VITE_API_URL;
   if (env !== undefined && env !== "") return String(env).replace(/\/$/, "");

@@ -16,6 +16,7 @@ export function useAudit({ apiBase, apiKey, onComplete }) {
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const timerRef = useRef(null);
+  const fileRef = useRef(null);
 
   const clearTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -23,6 +24,7 @@ export function useAudit({ apiBase, apiKey, onComplete }) {
   };
 
   const pickFile = useCallback((f) => {
+    fileRef.current = f;
     setFile(f);
     setReport(null);
     setError(null);
@@ -35,69 +37,82 @@ export function useAudit({ apiBase, apiKey, onComplete }) {
     }
   }, []);
 
-  const runAudit = useCallback(async () => {
-    if (!file || running) return;
-    if (!apiKey) {
-      setError("Set X-Factory-API-Key (same as FACTORY_MASTER_KEY) before auditing.");
-      return;
-    }
-    setRunning(true);
-    setError(null);
-    setReport(null);
-    setActiveStep(0);
-    setLogs([
-      { t: Date.now(), text: `Queued ${file.name}` },
-      { t: Date.now(), text: "Extractor starting…" },
-    ]);
-
-    let idx = 0;
-    clearTimer();
-    timerRef.current = setInterval(() => {
-      idx = Math.min(idx + 1, STEP_DEFS.length - 1);
-      setActiveStep(idx);
-      setLogs((prev) => [
-        ...prev,
-        { t: Date.now(), text: `${STEP_DEFS[idx].label} running…` },
+  const runAudit = useCallback(
+    async (fileOverride) => {
+      const active = fileOverride || fileRef.current || file;
+      if (!active || running) return;
+      if (!apiKey) {
+        setError("Set X-Factory-API-Key (same as FACTORY_MASTER_KEY) before auditing.");
+        return;
+      }
+      if (fileOverride) {
+        fileRef.current = fileOverride;
+        setFile(fileOverride);
+      }
+      setRunning(true);
+      setError(null);
+      setReport(null);
+      setActiveStep(0);
+      setLogs([
+        { t: Date.now(), text: `Queued ${active.name}` },
+        { t: Date.now(), text: "Extractor starting…" },
       ]);
-    }, 700);
 
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const r = await fetch(`${apiBase}/audit`, {
-        method: "POST",
-        headers: { "X-Factory-API-Key": apiKey },
-        body: fd,
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        const detail = data.detail || `HTTP ${r.status}`;
-        if (r.status === 401) {
-          throw new Error("API key rejected. Use the same FACTORY_MASTER_KEY as the server.");
+      let idx = 0;
+      clearTimer();
+      timerRef.current = setInterval(() => {
+        idx = Math.min(idx + 1, STEP_DEFS.length - 1);
+        setActiveStep(idx);
+        setLogs((prev) => [
+          ...prev,
+          { t: Date.now(), text: `${STEP_DEFS[idx].label} running…` },
+        ]);
+      }, 700);
+
+      try {
+        const fd = new FormData();
+        fd.append("file", active);
+        const r = await fetch(`${apiBase}/audit`, {
+          method: "POST",
+          headers: { "X-Factory-API-Key": apiKey },
+          body: fd,
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          const detail = data.detail || `HTTP ${r.status}`;
+          if (r.status === 401) {
+            throw new Error("API key rejected. Use the same FACTORY_MASTER_KEY as the server.");
+          }
+          throw new Error(detail);
         }
-        throw new Error(detail);
+        clearTimer();
+        setActiveStep(STEP_DEFS.length);
+        setLogs((prev) => [
+          ...prev,
+          {
+            t: Date.now(),
+            text: `Complete · ${data.fraud?.verdict} · score ${data.fraud?.score}`,
+          },
+        ]);
+        setReport(data);
+        onComplete?.(data, active);
+      } catch (e) {
+        clearTimer();
+        setActiveStep(-1);
+        const msg = e.message || String(e);
+        if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+          setError(
+            "Cannot reach the ClaimGuard API. Check the host URL and that the service is awake."
+          );
+        } else {
+          setError(msg);
+        }
+      } finally {
+        setRunning(false);
       }
-      clearTimer();
-      setActiveStep(STEP_DEFS.length);
-      setLogs((prev) => [
-        ...prev,
-        { t: Date.now(), text: `Complete · ${data.fraud?.verdict} · score ${data.fraud?.score}` },
-      ]);
-      setReport(data);
-      onComplete?.(data, file);
-    } catch (e) {
-      clearTimer();
-      setActiveStep(-1);
-      const msg = e.message || String(e);
-      if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
-        setError("Cannot reach the ClaimGuard API. Check the host URL and that the service is awake.");
-      } else {
-        setError(msg);
-      }
-    } finally {
-      setRunning(false);
-    }
-  }, [apiBase, apiKey, file, running, onComplete]);
+    },
+    [apiBase, apiKey, file, running, onComplete]
+  );
 
   return {
     STEP_DEFS,
@@ -116,3 +131,10 @@ export function useAudit({ apiBase, apiKey, onComplete }) {
 }
 
 export { STEP_DEFS };
+
+export const ALLOWED_SAMPLES = [
+  "bill_clean.json",
+  "bill_honest_typhoid.json",
+  "bill_padded.json",
+  "bill_unrelated.json",
+];

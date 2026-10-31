@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export function useHealth(apiBase) {
   const [status, setStatus] = useState("checking");
   const [info, setInfo] = useState(null);
+  const [tick, setTick] = useState(0);
+
+  const refetch = useCallback(() => {
+    setTick((t) => t + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,7 +30,7 @@ export function useHealth(apiBase) {
     return () => {
       cancelled = true;
     };
-  }, [apiBase]);
+  }, [apiBase, tick]);
 
-  return { status, info };
+  return { status, info, refetch };
 }

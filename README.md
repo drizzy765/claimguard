@@ -1,152 +1,126 @@
 # ClaimGuard
 
-**Nigerian HMO / hospital bill claim auditor** built on the agent-factory LangGraph chassis, powered by **Gemma 4** (vision + reasoning).
+ClaimGuard is a demo claims auditor for Nigerian HMO and hospital bills. It extracts bill details, compares prices with illustrative sample tariffs, checks items against the diagnosis, and calculates a deterministic fraud score.
 
-Hacktoberfest Hack Day · MIT License
+> **Demo only:** sample bills and tariffs are synthetic, are not official NHIA tariffs, and contain no real patient data. ClaimGuard is not medical advice or a production claims adjudicator.
 
-## Problem
+## How it works
 
-HMOs in Nigeria still review hospital claims largely by hand. Inflated drug prices, duplicate lines, unrelated procedures, and arithmetic that does not add up slip through — costing payers real naira every day.
+1. **Extract** line items and bill details from an image with a vision model.
+2. **Check prices** against `data/tariffs_sample.csv`.
+3. **Review medical consistency** between the diagnosis and billed items.
+4. **Score** rule-based flags such as overcharges, duplicates, unrelated items, and arithmetic mismatches.
 
-## Solution
+The API is FastAPI; the web interface is React and Vite. The main audit endpoint is `POST /audit`.
 
-ClaimGuard runs a **four-agent pipeline** on a bill photo:
+## LLM providers
 
-1. **Extractor** (Gemma 4 vision) → structured line items  
-2. **Price checker** → fuzzy match against **illustrative sample tariffs** (not official NHIA)  
-3. **Medical logic** → clinical fit of items vs diagnosis  
-4. **Fraud scorer** → **deterministic Python rules** for score/verdict + Gemma summary  
+| Provider | Configuration | Use |
+|---|---|---|
+| Gemini API | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | Primary model; defaults to `gemma-4-31b-it` |
+| Groq | `GROQ_API_KEY`, `GROQ_MODEL` | Automatic provider fallback; `qwen/qwen3.8-27b` supports vision and JSON mode |
+| Ollama or vLLM | `LLM_FALLBACK_BASE_URL`, `LLM_FALLBACK_API_KEY`, `LLM_FALLBACK_MODEL` | Optional self-hosted fallback |
 
-```text
-User bill photo → POST /audit → Extractor → (Price ‖ Medical) → Fraud rules → AuditReport JSON
-                                                              ↑
-                                              data/tariffs_sample.csv
-```
+Copy `.env.example` to `.env` and set `FACTORY_MASTER_KEY`. Add provider credentials to enable model-backed auditing. JSON sample bills can be audited without an LLM; a matching JSON sidecar also enables rules-only processing for sample images when no primary or self-hosted model is configured.
 
-## Gemma 4 usage
+See [docs/gemma.md](docs/gemma.md) for provider and hosting details.
 
-| Mode | Env | Model |
-|------|-----|--------|
-| **Gemini API** (demo primary) | `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/` | `gemma-4-31b-it` |
-| **Self-hosted Ollama** | `LLM_BASE_URL=http://<host>:11434/v1` | `gemma4:12b` |
+## Local setup
 
-Switch providers by changing only `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`. See [docs/gemma.md](docs/gemma.md).
-
-Without an API key, `/audit` still works on `data/sample_bills/*.json` (and image uploads that have a matching JSON sidecar) using **rules-only** scoring — useful for CI and weak laptops.
-
-## Architecture
-
-Kept from agent-factory: FastAPI `main.py`, `core/chassis.py` (LangGraph react agent + tool registry), `X-Factory-API-Key` auth, `/health`, `/supervisor`, `/run/{profile}`, `/upload`.
-
-ClaimGuard adds: `core/llm.py`, `core/pipeline.py`, `core/scoring.py`, `core/schemas.py`, profiles, `tools/tariff_lookup.py`, `POST /audit`.
-
-## Live demo
-
-- **API / app:** https://claimguard-sfxx.onrender.com/  
-- Health: https://claimguard-sfxx.onrender.com/health  
-- Free Render tier may cold-start (~30–60s) after idle — hit `/health` once (or use **Retry** in the UI) before demos.
-- **One-click samples** (set `FACTORY_MASTER_KEY` in Settings first):  
-  - Padded → FRAUD RISK: open the app → **Try padded → FRAUD RISK**  
-  - Clean → CLEAN: **Try clean → CLEAN**  
-  Or go to `/audit?sample=bill_padded.json` / `/audit?sample=bill_clean.json`.
-
-## Quick start
-
-### PowerShell
+### Windows PowerShell
 
 ```powershell
-python -m venv .venv; .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 Copy-Item .env.example .env
-# Edit .env: set FACTORY_MASTER_KEY and optionally LLM_API_KEY
+```
+
+Edit `.env` and set a development `FACTORY_MASTER_KEY`. To run image extraction with Groq, set `GROQ_API_KEY` and `GROQ_MODEL=qwen/qwen3.8-27b`. To generate or refresh synthetic samples, run:
+
+```powershell
 python scripts/make_samples.py
-$env:PYTHONPATH="."; $env:FACTORY_MASTER_KEY="dev_key_change_me"
+```
+
+Start the API:
+
+```powershell
+$env:PYTHONPATH = "."
 uvicorn main:app --reload --port 8000
 ```
 
-In another terminal:
-
-```powershell
-curl.exe http://127.0.0.1:8000/health
-curl.exe -X POST http://127.0.0.1:8000/audit -H "X-Factory-API-Key: $env:FACTORY_MASTER_KEY" -F "file=@data/sample_bills/bill_padded.json"
-python -m pytest -q
-cd frontend; npm install; npm run dev
-```
-
-### bash
+### macOS / Linux
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 cp .env.example .env
 python scripts/make_samples.py
-export PYTHONPATH=. FACTORY_MASTER_KEY=dev_key_change_me
+export PYTHONPATH=.
 uvicorn main:app --reload --port 8000
-pytest -q
-curl -X POST http://127.0.0.1:8000/audit -H "X-Factory-API-Key: $FACTORY_MASTER_KEY" -F "file=@data/sample_bills/bill_padded.json"
 ```
 
-### Cloud deploy (no local Docker Desktop)
+Set `FACTORY_MASTER_KEY` and any provider credentials in `.env` before starting the API.
 
-One container serves **API + UI** (same origin). Pick either host:
+## How to test
 
-#### DigitalOcean App Platform (recommended for this hack day)
+### Run the automated tests
 
-1. Open [Create App](https://cloud.digitalocean.com/apps/new) → **GitHub** → `drizzy765/claimguard` → branch `main`.
-2. Detect **Dockerfile** → HTTP port **8000** → smallest Basic plan (~$5/mo; use $25 credit if you have it).
-3. **Env vars** (App → Settings → App-Level / component env):
+From the repository root, run:
 
-| Key | Value |
-|-----|--------|
-| `FACTORY_MASTER_KEY` | long random string (same one you paste in the UI) |
-| `LLM_API_KEY` | Google AI Studio key |
-| `LLM_MODEL` | `gemma-4-31b-it` |
-| `LLM_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` |
-| `GROQ_API_KEY` | Groq key (Gemini credit/outage fallback) |
-| `GROQ_MODEL` | `llama-3.3-70b-versatile` |
+```powershell
+python -m pytest -q
+```
 
-4. Deploy → open `https://claimguard-xxxx.ondigitalocean.app` → `/health` → `OK`.
-
-Spec file: [`.do/app.yaml`](.do/app.yaml) (optional: `doctl apps create --spec .do/app.yaml` after `doctl auth init`).
-
-#### Render (alternative)
-
-1. [New → Blueprint](https://dashboard.render.com/select-repo?type=blueprint) → `drizzy765/claimguard` (`render.yaml`).
-2. Set `FACTORY_MASTER_KEY`, `LLM_API_KEY`, `GROQ_API_KEY`.
-3. Open `https://claimguard-xxxx.onrender.com` — free tier cold-starts after idle.
-
-### Docker (optional / cloud builders)
+or:
 
 ```bash
-docker build -t claimguard .
-docker run -p 8000:8000 --env-file .env claimguard
+python -m pytest -q
 ```
 
+The tests exercise deterministic scoring, tariff matching, and API behavior without requiring live LLM credentials.
 
-## Sample data disclaimer
+### Smoke-test the API
 
-`data/tariffs_sample.csv` and `data/sample_bills/` are **synthetic / illustrative**. They are **not** official NHIA tariffs and contain **no real patient data**. ClaimGuard is **not medical advice** and is not a production claims adjudicator.
+With the API running, use a second terminal. Set the same development key used by the server:
 
-## Demo script (60–90 s)
+```powershell
+$env:FACTORY_MASTER_KEY = "dev_key_change_me"
+curl.exe http://127.0.0.1:8000/health
+curl.exe -X POST http://127.0.0.1:8000/audit `
+  -H "X-Factory-API-Key: $env:FACTORY_MASTER_KEY" `
+  -F "file=@data/sample_bills/bill_padded.json"
+```
 
-1. Upload `bill_clean.json` / image → **APPROVE**.  
-2. Upload `bill_padded` → agents light up → **REJECT** (overpriced Paracetamol, duplicate injection, math mismatch).  
-3. Flip env to self-hosted Gemma 4 → same verdict. Open harness, open weights.
+The padded sample should return an audit report with fraud flags. Try `bill_clean.json` for a clean sample. To exercise image extraction, upload `bill_clean.jpg`; configure a vision-capable provider in `.env` for model-backed extraction.
 
-## Roadmap
+### Run the web interface
 
-- Fine-tune Gemma on **anonymised** Nigerian claims (with HMO partners)  
-- Official NHIA / private tariff packs (licensed)  
-- Batch CSV audit + auditor review queue  
-- Stronger vision calibration on low-quality phone photos  
+Install Node.js, then start Vite:
 
-## Docs
+```powershell
+cd frontend
+npm ci
+npm run dev -- --host 127.0.0.1
+```
 
-- [docs/deployment.plan.md](docs/deployment.plan.md) — **DigitalOcean / cloud backend deploy (when ready)**  
-- [docs/agent.md](docs/agent.md) — agent instructions & schemas  
-- [docs/architecture.md](docs/architecture.md) — system design  
-- [docs/implementation.plan.md](docs/implementation.plan.md) — hack day plan  
-- [docs/gemma.md](docs/gemma.md) — Gemini API / Ollama / Colab hosting  
+Open the local URL printed by Vite. In the app's **Settings**, set the API host to `http://127.0.0.1:8000` and enter the same `FACTORY_MASTER_KEY` used by the API. The frontend's default development API host points to the hosted demo.
+
+## Deployment
+
+The included [Dockerfile](Dockerfile) builds the frontend and serves it with the API. Deployment configuration and instructions:
+
+- [Render Blueprint](render.yaml)
+- [Deployment plan](docs/deployment.plan.md)
+- [Gemma and provider hosting guide](docs/gemma.md)
+
+## Project documentation
+
+- [Architecture](docs/architecture.md)
+- [Agent instructions and schemas](docs/agent.md)
+- [Implementation plan](docs/implementation.plan.md)
+- [Frontend README](frontend/README.md)
 
 ## License
 

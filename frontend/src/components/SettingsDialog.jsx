@@ -61,7 +61,7 @@ export default function SettingsDialog({
             className="h-11 rounded-md border border-line bg-paper px-3 text-sm font-normal normal-case tracking-normal text-ink"
             value={apiBase}
             onChange={(e) => setApiBase(e.target.value)}
-            placeholder="http://127.0.0.1:8000"
+            placeholder="https://claimguard-sfxx.onrender.com"
           />
         </label>
 

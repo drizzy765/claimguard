@@ -24,7 +24,7 @@ export function formatNaira(n) {
 
 export function defaultApiBase() {
   const env = import.meta.env.VITE_API_URL;
-  if (env !== undefined && env !== "") return env;
-  if (import.meta.env.PROD) return "";
-  return "http://127.0.0.1:8000";
+  if (env !== undefined && env !== "") return String(env).replace(/\/$/, "");
+  // Deployed ClaimGuard API (Render)
+  return "https://claimguard-sfxx.onrender.com";
 }

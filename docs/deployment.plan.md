@@ -166,11 +166,11 @@ Optional open-weights aside: GPU droplet + Ollama per [gemma.md](gemma.md) §B �
 
 | Field | Value |
 |-------|--------|
-| Host (A / B / C) | |
-| Public URL | |
-| Deployed commit SHA | |
-| Region / plan | |
-| Notes | |
+| Host (A / B / C) | **B — Render** |
+| Public URL | https://claimguard-sfxx.onrender.com/ |
+| Deployed commit SHA | (see `main` on GitHub) |
+| Region / plan | Render free / web service |
+| Notes | Cold starts after idle; warm `/health` before demo |
 
 ---
 

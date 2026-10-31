@@ -7,4 +7,4 @@ npm install
 npm run dev
 ```
 
-Set `VITE_API_URL` (see `.env.development`) to your FastAPI host. Paste the same `FACTORY_MASTER_KEY` into the UI as `X-Factory-API-Key`.
+Default API host: `https://claimguard-sfxx.onrender.com` (see `.env.development` / `.env.production`). Paste the same `FACTORY_MASTER_KEY` into the UI as `X-Factory-API-Key`.

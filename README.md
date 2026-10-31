@@ -40,6 +40,12 @@ Kept from agent-factory: FastAPI `main.py`, `core/chassis.py` (LangGraph react a
 
 ClaimGuard adds: `core/llm.py`, `core/pipeline.py`, `core/scoring.py`, `core/schemas.py`, profiles, `tools/tariff_lookup.py`, `POST /audit`.
 
+## Live demo
+
+- **API / app:** https://claimguard-sfxx.onrender.com/  
+- Health: https://claimguard-sfxx.onrender.com/health  
+- Free Render tier may cold-start (~30–60s) after idle — hit `/health` once before demos.
+
 ## Quick start
 
 ### PowerShell

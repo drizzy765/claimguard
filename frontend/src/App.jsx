@@ -10,10 +10,23 @@ import { useHealth } from "@/hooks/useHealth";
 import { useLocalHistory } from "@/hooks/useLocalHistory";
 import { defaultApiBase } from "@/lib/utils";
 
+function initialApiBase() {
+  const stored = localStorage.getItem("CG_API_BASE");
+  const fallback = defaultApiBase();
+  // On Vercel, prefer same-origin /cg-api proxy (avoids browser CORS flakiness).
+  const onVercel =
+    typeof window !== "undefined" && /\.vercel\.app$/i.test(window.location.hostname);
+  if (onVercel) {
+    const renderHost = "https://claimguard-sfxx.onrender.com";
+    if (!stored || stored === renderHost || stored.startsWith(renderHost)) {
+      return "/cg-api";
+    }
+  }
+  return stored || fallback;
+}
+
 export default function App() {
-  const [apiBase, setApiBase] = useState(
-    () => localStorage.getItem("CG_API_BASE") || defaultApiBase()
-  );
+  const [apiBase, setApiBase] = useState(initialApiBase);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("FACTORY_MASTER_KEY") || "");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scanning, setScanning] = useState(false);

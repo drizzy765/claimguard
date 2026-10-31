@@ -30,12 +30,14 @@ function initialApiBase() {
 }
 
 function initialApiKey() {
-  const stored = (localStorage.getItem("FACTORY_MASTER_KEY") || "").trim();
-  // Empty / placeholder label → bake in the live Render demo key so Settings is optional.
-  if (!stored || stored === "FACTORY_MASTER_KEY") {
-    return defaultApiKey();
+  // Always use the live Render demo key so stale localStorage cannot 401 judges.
+  const demo = defaultApiKey();
+  try {
+    localStorage.setItem("FACTORY_MASTER_KEY", demo);
+  } catch {
+    /* ignore */
   }
-  return stored;
+  return demo;
 }
 
 export default function App() {

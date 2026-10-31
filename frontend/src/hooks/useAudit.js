@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { defaultApiKey } from "@/lib/utils";
 
 const STEP_DEFS = [
   { id: "extractor", label: "Extractor", detail: "Gemma 4 vision reads line items" },
@@ -41,10 +42,7 @@ export function useAudit({ apiBase, apiKey, onComplete }) {
     async (fileOverride) => {
       const active = fileOverride || fileRef.current || file;
       if (!active || running) return;
-      if (!apiKey) {
-        setError("Set X-Factory-API-Key (same as FACTORY_MASTER_KEY) before auditing.");
-        return;
-      }
+      const key = (apiKey || "").trim() || defaultApiKey();
       if (fileOverride) {
         fileRef.current = fileOverride;
         setFile(fileOverride);
@@ -74,7 +72,7 @@ export function useAudit({ apiBase, apiKey, onComplete }) {
         fd.append("file", active);
         const r = await fetch(`${apiBase}/audit`, {
           method: "POST",
-          headers: { "X-Factory-API-Key": apiKey },
+          headers: { "X-Factory-API-Key": key },
           body: fd,
         });
         const data = await r.json().catch(() => ({}));
